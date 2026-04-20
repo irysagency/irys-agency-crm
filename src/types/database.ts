@@ -33,7 +33,7 @@ export interface TrackingPixel {
   id: string
   email_id: string
   prospect_id: string
-  ouvert_le: string
+  ouvert_le: string | null
 }
 
 export interface AppSetting {

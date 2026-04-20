@@ -75,6 +75,7 @@ create index idx_prospects_statut on prospects(statut);
 create index idx_prospects_niche on prospects(niche);
 create index idx_emails_prospect_id on emails(prospect_id);
 create index idx_tracking_email_id on tracking_pixels(email_id);
+create index idx_tracking_prospect_id on tracking_pixels(prospect_id);
 
 -- RLS : ENABLE avant CREATE POLICY (obligatoire dans Supabase)
 alter table prospects enable row level security;
