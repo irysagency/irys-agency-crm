@@ -94,7 +94,7 @@ export async function getRelances(): Promise<Prospect[]> {
     .select('value')
     .eq('key', 'relance_delai_jours')
     .single()
-  const delaiJours = setting ? parseInt(setting.value, 10) : 4
+  const delaiJours = setting ? (parseInt(setting.value, 10) || 4) : 4
 
   const now = new Date()
   const delaiEnvoye = new Date(now.getTime() - delaiJours * 24 * 60 * 60 * 1000)
