@@ -1,7 +1,15 @@
-export default function Home() {
+import { KpiGrid } from '@/components/dashboard/KpiGrid'
+import { ActivityChart } from '@/components/dashboard/ActivityChart'
+import { FunnelChart } from '@/components/dashboard/FunnelChart'
+
+export default function DashboardPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg-base">
-      <h1 className="text-text-primary text-2xl font-semibold">Irys Agency CRM</h1>
-    </main>
+    <div className="space-y-6">
+      <KpiGrid />
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <ActivityChart />
+        <FunnelChart />
+      </div>
+    </div>
   )
 }
