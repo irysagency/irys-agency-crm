@@ -13,8 +13,8 @@
   --color-text-primary: #F1F1F1;
   --color-text-secondary: #888780;
 
-  --color-border-subtle: rgba(255, 255, 255, 0.06);
-  --color-border-default: rgba(255, 255, 255, 0.10);
+  --color-border-color-subtle: rgba(255, 255, 255, 0.06);
+  --color-border-color-DEFAULT: rgba(255, 255, 255, 0.10);
 
   --radius-card: 12px;
   --radius-badge: 8px;

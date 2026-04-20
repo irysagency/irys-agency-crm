@@ -1,3 +1,6 @@
+// NOTE: This project uses Tailwind v4. tailwind.config.ts acts as a compatibility
+// layer for IDE tooling. The canonical source of design tokens is the @theme block
+// in src/app/globals.css. Both files MUST be kept in sync when tokens are added/modified.
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
@@ -20,10 +23,10 @@ const config: Config = {
           primary: '#F1F1F1',
           secondary: '#888780',
         },
-        border: {
-          subtle: 'rgba(255,255,255,0.06)',
-          default: 'rgba(255,255,255,0.10)',
-        },
+      },
+      borderColor: {
+        subtle: 'rgba(255,255,255,0.06)',
+        DEFAULT: 'rgba(255,255,255,0.10)',
       },
       borderRadius: {
         card: '12px',
