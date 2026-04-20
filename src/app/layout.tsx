@@ -1,25 +1,29 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import './globals.css'
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-})
+import { Sidebar } from '@/components/layout/Sidebar'
+import { Topbar } from '@/components/layout/Topbar'
 
 export const metadata: Metadata = {
-  title: 'Irys Agency CRM',
-  description: 'CRM interne pour Irys Agency',
+  title: 'Irys CRM',
+  description: 'CRM de prospection Irys Agency',
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
-    <html lang="fr" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="fr">
+      <body className="bg-bg-base text-text-primary min-h-screen flex">
+        <Sidebar />
+        <div className="flex-1 flex flex-col min-h-screen ml-64">
+          <Topbar />
+          <main className="flex-1 p-6 overflow-auto">
+            {children}
+          </main>
+        </div>
+      </body>
     </html>
   )
 }
