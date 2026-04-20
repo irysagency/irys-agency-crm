@@ -22,6 +22,14 @@ export function Drawer({ open, onClose, title, children, width = 'w-[560px]' }: 
     return () => { document.body.style.overflow = '' }
   }, [open])
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [open, onClose])
+
   return (
     <>
       {/* Overlay */}
