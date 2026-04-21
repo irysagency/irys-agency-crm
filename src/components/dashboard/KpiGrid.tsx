@@ -22,11 +22,9 @@ export function KpiGrid() {
     async function fetchStats() {
       try {
         const supabase = createClient()
-        const oneWeekAgo = new Date()
-        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
 
         const [emailsRes, prospectsRes] = await Promise.all([
-          supabase.from('emails').select('ouvert').gte('envoye_le', oneWeekAgo.toISOString()),
+          supabase.from('emails').select('ouvert'),
           supabase.from('prospects').select('statut'),
         ])
 
