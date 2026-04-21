@@ -20,31 +20,34 @@ export function KpiGrid() {
 
   useEffect(() => {
     async function fetchStats() {
-      const supabase = createClient()
-      const oneWeekAgo = new Date()
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+      try {
+        const supabase = createClient()
+        const oneWeekAgo = new Date()
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
 
-      const [emailsRes, prospectsRes] = await Promise.all([
-        supabase.from('emails').select('ouvert').gte('envoye_le', oneWeekAgo.toISOString()),
-        supabase.from('prospects').select('statut'),
-      ])
+        const [emailsRes, prospectsRes] = await Promise.all([
+          supabase.from('emails').select('ouvert').gte('envoye_le', oneWeekAgo.toISOString()),
+          supabase.from('prospects').select('statut'),
+        ])
 
-      if (emailsRes.data && prospectsRes.data) {
-        const emails = emailsRes.data
-        const prospects = prospectsRes.data
-        setStats({
-          mailsEnvoyesSemaine: emails.length,
-          tauxOuverture: emails.length > 0
-            ? Math.round((emails.filter(e => e.ouvert).length / emails.length) * 100)
-            : 0,
-          tauxReponse: prospects.length > 0
-            ? Math.round((prospects.filter(p => (['repondu', 'call_booke', 'signe'] as const).includes(p.statut as 'repondu' | 'call_booke' | 'signe')).length / prospects.length) * 100)
-            : 0,
-          callsBookes: prospects.filter(p => p.statut === 'call_booke').length,
-          clientsSignes: prospects.filter(p => p.statut === 'signe').length,
-        })
+        if (emailsRes.data && prospectsRes.data) {
+          const emails = emailsRes.data
+          const prospects = prospectsRes.data
+          setStats({
+            mailsEnvoyesSemaine: emails.length,
+            tauxOuverture: emails.length > 0
+              ? Math.round((emails.filter(e => e.ouvert).length / emails.length) * 100)
+              : 0,
+            tauxReponse: prospects.length > 0
+              ? Math.round((prospects.filter(p => (['repondu', 'call_booke', 'signe'] as const).includes(p.statut as 'repondu' | 'call_booke' | 'signe')).length / prospects.length) * 100)
+              : 0,
+            callsBookes: prospects.filter(p => p.statut === 'call_booke').length,
+            clientsSignes: prospects.filter(p => p.statut === 'signe').length,
+          })
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     fetchStats()
   }, [])
