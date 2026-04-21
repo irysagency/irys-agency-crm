@@ -29,16 +29,29 @@ export async function handleOAuthCallback(code: string, label: string): Promise<
   const { data: userInfo } = await oauth2api.userinfo.get()
 
   const supabase = createServerClient()
-  await supabase.from('email_accounts').upsert(
-    {
-      label,
-      email: userInfo.email ?? null,
-      access_token: tokens.access_token ?? null,
-      refresh_token: tokens.refresh_token ?? null,
-      token_expiry: tokens.expiry_date ?? null,
-    },
-    { onConflict: 'label' },
-  )
+
+  // Vérifie si un compte avec ce label existe déjà
+  const { data: existing } = await supabase
+    .from('email_accounts')
+    .select('id')
+    .eq('label', label)
+    .single()
+
+  const payload = {
+    label,
+    email: userInfo.email ?? null,
+    access_token: tokens.access_token ?? null,
+    refresh_token: tokens.refresh_token ?? null,
+    token_expiry: tokens.expiry_date ?? null,
+  }
+
+  if (existing) {
+    const { error } = await supabase.from('email_accounts').update(payload).eq('id', existing.id)
+    if (error) throw new Error(error.message)
+  } else {
+    const { error } = await supabase.from('email_accounts').insert(payload)
+    if (error) throw new Error(error.message)
+  }
 }
 
 export async function getAuthenticatedGmail(accountId: string) {
