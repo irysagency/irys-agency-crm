@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { X, Loader2, User, Mail, Phone } from 'lucide-react'
-import type { Prospect, NicheType, SourceType } from '@/types'
-import { NICHES, SOURCES } from '@/types'
+import type { Prospect, NicheType } from '@/types'
+import { NICHES } from '@/types'
 
 interface AddProspectModalProps {
   open: boolean
@@ -14,7 +14,6 @@ interface AddProspectModalProps {
 const EMPTY = {
   nom: '',
   niche: '' as NicheType | '',
-  source: 'email' as SourceType,
   email: '',
   instagram: '',
   youtube: '',
@@ -117,28 +116,6 @@ export function AddProspectModal({ open, onClose, onCreated }: AddProspectModalP
               </select>
             </div>
 
-            <div className="col-span-2 space-y-1">
-              <label className="text-xs font-medium text-text-secondary uppercase tracking-wider">
-                Source de contact
-              </label>
-              <div className="grid grid-cols-4 gap-2">
-                {SOURCES.map(s => (
-                  <button
-                    key={s.key}
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, source: s.key }))}
-                    className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg border text-xs font-medium transition-colors ${
-                      form.source === s.key
-                        ? 'border-accent-violet bg-accent-violet/10 text-accent-violet'
-                        : 'border-border-color-subtle bg-bg-base text-text-secondary hover:text-text-primary hover:border-accent-violet/40'
-                    }`}
-                  >
-                    <span className="text-base">{s.emoji}</span>
-                    <span className="truncate w-full text-center">{s.label.split(' ')[0]}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
 
           {/* Contacts */}
