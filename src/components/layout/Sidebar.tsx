@@ -5,30 +5,16 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { LayoutDashboard, Users, Bell, Settings, Zap } from 'lucide-react'
 import { clsx } from 'clsx'
-import { createClient } from '@/lib/supabase/client'
 
 export function Sidebar() {
   const pathname = usePathname()
   const [relanceCount, setRelanceCount] = useState(0)
 
   useEffect(() => {
-    async function fetchRelances() {
-      const supabase = createClient()
-      const { data } = await supabase
-        .from('prospects')
-        .select('statut, derniere_action')
-        .in('statut', ['envoye', 'ouvert'])
-
-      if (!data) return
-      const now = Date.now()
-      const count = data.filter(p => {
-        if (!p.derniere_action) return false
-        const delaiMs = (p.statut === 'ouvert' ? 2 : 4) * 86400000
-        return now - new Date(p.derniere_action).getTime() > delaiMs
-      }).length
-      setRelanceCount(count)
-    }
-    fetchRelances()
+    fetch('/api/relances/count')
+      .then(r => r.json())
+      .then((d: { count?: number }) => setRelanceCount(d.count ?? 0))
+      .catch(() => {})
   }, [])
 
   const NAV_ITEMS = [
