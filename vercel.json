@@ -8,6 +8,15 @@
     },
     "src/app/api/gmail/callback/route.ts": {
       "maxDuration": 10
+    },
+    "src/app/api/gmail/sync-replies/route.ts": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/gmail/sync-replies",
+      "schedule": "0 * * * *"
+    }
+  ]
 }

@@ -9,7 +9,7 @@ function parseEmailHeader(header: string): string {
   return match ? match[1].toLowerCase() : header.toLowerCase().trim()
 }
 
-export async function POST() {
+async function syncReplies() {
   const supabase = createServerClient()
 
   // Récupérer tous les comptes Gmail connectés
@@ -116,4 +116,12 @@ export async function POST() {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
   return NextResponse.json({ updated: prospectIdsToUpdate.size })
+}
+
+export async function GET() {
+  return syncReplies()
+}
+
+export async function POST() {
+  return syncReplies()
 }
