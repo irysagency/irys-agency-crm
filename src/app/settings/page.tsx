@@ -1,5 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server'
 import { GmailConnect } from '@/components/settings/GmailConnect'
+import { GmailImport } from '@/components/settings/GmailImport'
 import { TrackingStatus } from '@/components/settings/TrackingStatus'
 
 export const dynamic = 'force-dynamic'
@@ -31,6 +32,7 @@ export default async function SettingsPage() {
       </div>
       <div className="max-w-xl space-y-4">
         <GmailConnect accounts={accounts} />
+        <GmailImport accounts={accounts} />
         <TrackingStatus delaiJours={delaiJours} />
       </div>
     </div>
