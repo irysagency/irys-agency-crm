@@ -36,7 +36,7 @@ export function KpiGrid() {
           // Tous les prospects qui ne sont pas "à contacter" = personnes contactées
           const contactees = prospects.filter(p => p.statut !== 'a_contacter')
           const ayantRepondu = prospects.filter(p =>
-            (['repondu', 'call_booke', 'signe'] as const).includes(p.statut as 'repondu' | 'call_booke' | 'signe')
+            ['repondu', 'call_booke', 'signe', 'refuse'].includes(p.statut)
           )
           setStats({
             personnesContactees: contactees.length,
