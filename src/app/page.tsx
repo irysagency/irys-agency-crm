@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { KpiGrid } from '@/components/dashboard/KpiGrid'
 import { ActivityChart } from '@/components/dashboard/ActivityChart'
 import { FunnelChart } from '@/components/dashboard/FunnelChart'

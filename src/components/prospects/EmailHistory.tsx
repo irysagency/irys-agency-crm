@@ -1,13 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { Eye, Clock } from 'lucide-react'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { createClient } from '@/lib/supabase/client'
 import type { Email } from '@/types'
 
 interface EmailHistoryProps {
-  prospectId: string
+  emails: Email[]
+  loading?: boolean
 }
 
 function formatDate(dateStr: string): string {
@@ -20,23 +19,7 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export function EmailHistory({ prospectId }: EmailHistoryProps) {
-  const [emails, setEmails] = useState<Email[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const supabase = createClient()
-    supabase
-      .from('emails')
-      .select('*')
-      .eq('prospect_id', prospectId)
-      .order('envoye_le', { ascending: true })
-      .then(({ data }) => {
-        if (data) setEmails(data as Email[])
-        setLoading(false)
-      })
-  }, [prospectId])
-
+export function EmailHistory({ emails, loading = false }: EmailHistoryProps) {
   if (loading) return <Skeleton className="h-32 w-full" />
   if (emails.length === 0) return null
 

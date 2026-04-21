@@ -7,11 +7,13 @@ import type { Prospect } from '@/types'
 interface EmailComposerProps {
   prospect: Prospect
   isReply?: boolean
+  threadId?: string | null
   onSent: () => void
 }
 
-export function EmailComposer({ prospect, isReply = false, onSent }: EmailComposerProps) {
-  const [objet, setObjet] = useState(isReply ? `Re: Collaboration vidéo — ${prospect.nom}` : '')
+export function EmailComposer({ prospect, isReply = false, threadId, onSent }: EmailComposerProps) {
+  const defaultSubject = isReply ? `Re: Collaboration vidéo — ${prospect.nom}` : ''
+  const [objet, setObjet] = useState(defaultSubject)
   const [corps, setCorps] = useState('')
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -30,13 +32,14 @@ export function EmailComposer({ prospect, isReply = false, onSent }: EmailCompos
           to: prospect.email,
           objet,
           corps,
+          ...(threadId ? { threadId } : {}),
         }),
       })
       if (!res.ok) {
         const data = await res.json() as { error?: string }
         throw new Error(data.error ?? "Erreur lors de l'envoi")
       }
-      setObjet('')
+      setObjet(defaultSubject)
       setCorps('')
       onSent()
     } catch (err) {

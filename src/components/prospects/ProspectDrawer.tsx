@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Camera, Play, Link, Mail, Phone, RefreshCw } from 'lucide-react'
 import { Drawer } from '@/components/ui/Drawer'
 import { StatutBadge, NicheBadge } from '@/components/ui/Badge'
 import { EmailHistory } from './EmailHistory'
 import { EmailComposer } from './EmailComposer'
 import { createClient } from '@/lib/supabase/client'
-import type { Prospect, StatutType } from '@/types'
+import type { Prospect, StatutType, Email } from '@/types'
 import { STATUTS } from '@/types'
 
 interface ProspectDrawerProps {
@@ -19,53 +19,80 @@ interface ProspectDrawerProps {
 export function ProspectDrawer({ prospect, onClose, onUpdate }: ProspectDrawerProps) {
   const [notes, setNotes] = useState('')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [updatingStatut, setUpdatingStatut] = useState(false)
+  const [statutError, setStatutError] = useState<string | null>(null)
   const [showComposer, setShowComposer] = useState(false)
-  const [hasEmails, setHasEmails] = useState(false)
-  const [emailsKey, setEmailsKey] = useState(0)
+  const [emails, setEmails] = useState<Email[]>([])
+  const [emailsLoading, setEmailsLoading] = useState(false)
+
+  const fetchEmails = useCallback(async (prospectId: string) => {
+    setEmailsLoading(true)
+    const supabase = createClient()
+    const { data, error } = await supabase
+      .from('emails')
+      .select('*')
+      .eq('prospect_id', prospectId)
+      .order('envoye_le', { ascending: false })
+    if (!error && data) setEmails(data as Email[])
+    setEmailsLoading(false)
+  }, [])
 
   useEffect(() => {
     if (prospect) {
       setNotes(prospect.notes ?? '')
       setShowComposer(false)
-      const supabase = createClient()
-      supabase
-        .from('emails')
-        .select('id')
-        .eq('prospect_id', prospect.id)
-        .limit(1)
-        .then(({ data }) => {
-          setHasEmails((data?.length ?? 0) > 0)
-        })
+      setStatutError(null)
+      setSaveError(null)
+      void fetchEmails(prospect.id)
+    } else {
+      setEmails([])
     }
-  }, [prospect?.id])
+  }, [prospect?.id, fetchEmails])
 
   async function handleStatutChange(statut: StatutType) {
     if (!prospect) return
+    setUpdatingStatut(true)
+    setStatutError(null)
     const supabase = createClient()
-    await supabase
+    const { error } = await supabase
       .from('prospects')
       .update({ statut, derniere_action: new Date().toISOString() })
       .eq('id', prospect.id)
+    setUpdatingStatut(false)
+    if (error) {
+      setStatutError('Erreur lors du changement de statut')
+      return
+    }
     onUpdate({ ...prospect, statut })
   }
 
   async function handleNotesSave() {
     if (!prospect) return
     setSaving(true)
+    setSaveError(null)
     const supabase = createClient()
-    await supabase.from('prospects').update({ notes }).eq('id', prospect.id)
+    const { error } = await supabase.from('prospects').update({ notes }).eq('id', prospect.id)
     setSaving(false)
+    if (error) {
+      setSaveError('Erreur lors de la sauvegarde')
+      return
+    }
     onUpdate({ ...prospect, notes })
   }
 
-  function handleEmailSent() {
+  async function handleEmailSent() {
     setShowComposer(false)
-    setHasEmails(true)
-    setEmailsKey(k => k + 1)
-    if (prospect && prospect.statut === 'a_contacter') {
-      void handleStatutChange('envoye')
+    if (prospect) {
+      await fetchEmails(prospect.id)
+      if (prospect.statut === 'a_contacter') {
+        await handleStatutChange('envoye')
+      }
     }
   }
+
+  const hasEmails = emails.length > 0
+  const lastThreadId = emails[0]?.gmail_thread_id ?? null
 
   return (
     <Drawer
@@ -90,9 +117,9 @@ export function ProspectDrawer({ prospect, onClose, onUpdate }: ProspectDrawerPr
               </a>
             )}
             {prospect.whatsapp && (
-              <div className="flex items-center gap-2 text-sm text-text-secondary">
+              <a href={`https://wa.me/${prospect.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
                 <Phone className="w-4 h-4" />{prospect.whatsapp}
-              </div>
+              </a>
             )}
             {prospect.instagram && (
               <a href={`https://instagram.com/${prospect.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
@@ -119,7 +146,8 @@ export function ProspectDrawer({ prospect, onClose, onUpdate }: ProspectDrawerPr
                 <button
                   key={key}
                   onClick={() => handleStatutChange(key)}
-                  className={`px-3 py-1.5 rounded-badge text-xs font-medium transition-colors ${
+                  disabled={updatingStatut}
+                  className={`px-3 py-1.5 rounded-badge text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
                     prospect.statut === key
                       ? 'bg-accent-violet text-white'
                       : 'bg-white/5 text-text-secondary hover:text-text-primary'
@@ -129,6 +157,7 @@ export function ProspectDrawer({ prospect, onClose, onUpdate }: ProspectDrawerPr
                 </button>
               ))}
             </div>
+            {statutError && <p className="text-xs text-accent-danger mt-2">{statutError}</p>}
           </div>
 
           {/* Notes */}
@@ -143,10 +172,11 @@ export function ProspectDrawer({ prospect, onClose, onUpdate }: ProspectDrawerPr
               className="w-full bg-bg-base border border-border-color-subtle rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus:outline-none focus:border-accent-violet transition-colors resize-none"
             />
             {saving && <p className="text-xs text-text-secondary mt-1">Sauvegarde...</p>}
+            {saveError && <p className="text-xs text-accent-danger mt-1">{saveError}</p>}
           </div>
 
           {/* Historique emails */}
-          <EmailHistory key={emailsKey} prospectId={prospect.id} />
+          <EmailHistory emails={emails} loading={emailsLoading} />
 
           {/* Bouton relancer ou composer */}
           {hasEmails && !showComposer && (
@@ -159,10 +189,11 @@ export function ProspectDrawer({ prospect, onClose, onUpdate }: ProspectDrawerPr
             </button>
           )}
 
-          {(!hasEmails || showComposer) && (
+          {prospect.email && (!hasEmails || showComposer) && (
             <EmailComposer
               prospect={prospect}
               isReply={hasEmails}
+              threadId={lastThreadId}
               onSent={handleEmailSent}
             />
           )}
