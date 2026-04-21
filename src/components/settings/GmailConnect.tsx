@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CheckCircle, Trash2, Plus, Loader2, Mail } from 'lucide-react'
+import { CheckCircle, Trash2, Plus, Loader2, Mail, RefreshCw } from 'lucide-react'
 
 interface EmailAccount {
   id: string
@@ -19,6 +19,25 @@ export function GmailConnect({ accounts: initialAccounts }: GmailConnectProps) {
   const [showForm, setShowForm] = useState(false)
   const [connecting, setConnecting] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [syncing, setSyncing] = useState(false)
+  const [syncResult, setSyncResult] = useState<string | null>(null)
+
+  async function handleSyncReplies() {
+    setSyncing(true)
+    setSyncResult(null)
+    try {
+      const res = await fetch('/api/gmail/sync-replies', { method: 'POST' })
+      const data = await res.json() as { updated?: number; error?: string }
+      if (!res.ok) throw new Error(data.error ?? 'Erreur')
+      setSyncResult(data.updated === 0
+        ? 'Aucune nouvelle réponse détectée'
+        : `${data.updated} prospect${data.updated! > 1 ? 's' : ''} passé${data.updated! > 1 ? 's' : ''} en "Répondu"`)
+    } catch (err) {
+      setSyncResult(err instanceof Error ? err.message : 'Erreur')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   function handleConnect(label: string) {
     setConnecting(label)
@@ -43,12 +62,29 @@ export function GmailConnect({ accounts: initialAccounts }: GmailConnectProps) {
 
   return (
     <div className="bg-bg-card border border-border-color-subtle rounded-xl p-6">
-      <h3 className="text-sm font-semibold text-text-primary mb-1">Comptes Gmail</h3>
-      <p className="text-xs text-text-secondary mb-4">
+      <div className="flex items-start justify-between mb-1">
+        <h3 className="text-sm font-semibold text-text-primary">Comptes Gmail</h3>
+        {accounts.length > 0 && (
+          <button
+            onClick={handleSyncReplies}
+            disabled={syncing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 disabled:opacity-50 rounded-lg text-xs font-medium text-text-secondary hover:text-text-primary transition-colors"
+          >
+            <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Vérification...' : 'Sync réponses'}
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-text-secondary mb-1">
         Connectez vos comptes Gmail pour envoyer des emails depuis le CRM.
       </p>
+      {syncResult && (
+        <p className={`text-xs mb-3 ${syncResult.includes('Erreur') ? 'text-accent-danger' : 'text-accent-success'}`}>
+          {syncResult}
+        </p>
+      )}
 
-      <div className="space-y-3">
+      <div className="space-y-3 mt-4">
         {accounts.map(account => (
           <div key={account.id} className="flex items-center justify-between bg-bg-base rounded-lg px-4 py-3 border border-border-color-subtle">
             <div className="flex items-center gap-3">
