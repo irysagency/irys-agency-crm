@@ -42,10 +42,16 @@ export function KanbanBoard({ initialProspects }: KanbanBoardProps) {
         ))}
       </div>
 
-      {/* TODO Task 8: Replace with <ProspectDrawer> once built */}
+      {/* TODO Task 8: Replace with:
+        <ProspectDrawer
+          prospect={selectedProspect}
+          onUpdate={handleProspectUpdate}
+          onClose={() => setSelectedProspect(null)}
+        />
+      */}
       {selectedProspect && (
         <div className="fixed bottom-4 right-4 bg-bg-card border border-border-color-subtle rounded-card px-4 py-2 text-sm text-text-secondary z-50">
-          Sélectionné: {selectedProspect.nom} — Drawer à venir (Task 8)
+          Sélectionné: {selectedProspect.nom} — Drawer Task 8
         </div>
       )}
     </>
