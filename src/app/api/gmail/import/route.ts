@@ -8,6 +8,7 @@ interface ImportContact {
   email: string
   name: string
   niche: NicheType
+  hasReplied: boolean
   threads: { subject: string; date: string; threadId: string }[]
   accountId: string
 }
@@ -32,7 +33,7 @@ export async function POST(request: NextRequest) {
         nom: contact.name || contact.email.split('@')[0],
         niche: contact.niche,
         email: contact.email,
-        statut: 'envoye',
+        statut: contact.hasReplied ? 'repondu' : 'envoye',
         derniere_action: contact.threads[0]?.date
           ? new Date(contact.threads[0].date).toISOString()
           : new Date().toISOString(),

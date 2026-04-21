@@ -1,10 +1,11 @@
-import type { NicheType, StatutType } from './index'
+import type { NicheType, SourceType, StatutType } from './index'
 
 export interface Prospect {
   id: string
   created_at: string
   nom: string
   niche: NicheType
+  source: SourceType
   instagram: string | null
   youtube: string | null
   linkedin: string | null

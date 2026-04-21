@@ -1,3 +1,12 @@
+export type SourceType = 'email' | 'instagram' | 'linkedin' | 'autre'
+
+export const SOURCES: readonly { key: SourceType; label: string; emoji: string }[] = [
+  { key: 'email', label: 'Email (Gmail)', emoji: '✉️' },
+  { key: 'instagram', label: 'Instagram', emoji: '📸' },
+  { key: 'linkedin', label: 'LinkedIn', emoji: '💼' },
+  { key: 'autre', label: 'Autre', emoji: '📌' },
+] as const
+
 export type NicheType =
   | 'Tech & IA'
   | 'Finance & Wealth'

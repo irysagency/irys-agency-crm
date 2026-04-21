@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Download, Loader2, Check, ChevronDown } from 'lucide-react'
+import { Download, Loader2, Check, ChevronDown, MessageSquare } from 'lucide-react'
 import type { NicheType } from '@/types'
 import { NICHES } from '@/types'
 
@@ -16,12 +16,14 @@ interface SentContact {
   name: string
   emailCount: number
   lastSent: string
+  hasReplied: boolean
   threads: { subject: string; date: string; threadId: string }[]
 }
 
 interface SelectableContact extends SentContact {
   selected: boolean
   niche: NicheType | ''
+  hasReplied: boolean
 }
 
 interface GmailImportProps {
@@ -158,7 +160,14 @@ export function GmailImport({ accounts }: GmailImportProps) {
                   {c.selected && <Check className="w-2.5 h-2.5 text-white" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">{c.name || c.email}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-text-primary truncate">{c.name || c.email}</p>
+                    {c.hasReplied && (
+                      <span className="flex items-center gap-1 px-1.5 py-0.5 bg-accent-success/15 text-accent-success rounded text-xs font-medium flex-shrink-0">
+                        <MessageSquare className="w-3 h-3" /> Répondu
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-text-secondary truncate">{c.email} · {c.emailCount} email{c.emailCount > 1 ? 's' : ''} envoyé{c.emailCount > 1 ? 's' : ''}</p>
                 </div>
                 {c.selected && (

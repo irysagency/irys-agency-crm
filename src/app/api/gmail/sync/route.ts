@@ -9,10 +9,10 @@ export interface SentContact {
   name: string
   emailCount: number
   lastSent: string
+  hasReplied: boolean
   threads: { subject: string; date: string; threadId: string }[]
 }
 
-// Extrait nom et email depuis un header "From" ou "To"
 function parseEmailHeader(header: string): { name: string; email: string } {
   const match = header.match(/^(.*?)\s*<(.+?)>$/)
   if (match) return { name: match[1].trim().replace(/^"|"$/g, ''), email: match[2].toLowerCase() }
@@ -26,6 +26,10 @@ export async function GET(request: NextRequest) {
   try {
     const gmail = await getAuthenticatedGmail(accountId)
 
+    // Récupérer l'email du compte connecté
+    const profileRes = await gmail.users.getProfile({ userId: 'me' })
+    const myEmail = profileRes.data.emailAddress?.toLowerCase() ?? ''
+
     // Récupérer les 200 derniers emails envoyés
     const listRes = await gmail.users.messages.list({
       userId: 'me',
@@ -36,7 +40,7 @@ export async function GET(request: NextRequest) {
     const messages = listRes.data.messages ?? []
     if (messages.length === 0) return NextResponse.json({ contacts: [] })
 
-    // Récupérer les détails en parallèle par batch de 20
+    // Récupérer les détails des messages envoyés
     const details = await Promise.all(
       messages.map(m =>
         gmail.users.messages.get({
@@ -48,8 +52,10 @@ export async function GET(request: NextRequest) {
       )
     )
 
-    // Grouper par destinataire
+    // Grouper par destinataire + collecter les threadIds uniques
     const contactMap = new Map<string, SentContact>()
+    const threadIds = new Set<string>()
+
     for (const { data } of details) {
       const headers = data.payload?.headers ?? []
       const toHeader = headers.find(h => h.name === 'To')?.value ?? ''
@@ -60,17 +66,41 @@ export async function GET(request: NextRequest) {
       const { name, email } = parseEmailHeader(toHeader)
       if (!email || email.includes('noreply') || email.includes('no-reply')) continue
 
-      const existing = contactMap.get(email) ?? {
-        email,
-        name,
-        emailCount: 0,
-        lastSent: date,
-        threads: [],
-      }
+      if (threadId) threadIds.add(threadId)
+
+      const existing = contactMap.get(email) ?? { email, name, emailCount: 0, lastSent: date, hasReplied: false, threads: [] }
       existing.emailCount++
       if (new Date(date) > new Date(existing.lastSent)) existing.lastSent = date
       if (existing.threads.length < 5) existing.threads.push({ subject, date, threadId })
       contactMap.set(email, existing)
+    }
+
+    // Détecter les réponses : lire les threads pour voir si quelqu'un d'autre a répondu
+    const threadSample = Array.from(threadIds).slice(0, 100)
+    const threadDetails = await Promise.all(
+      threadSample.map(tid =>
+        gmail.users.threads.get({ userId: 'me', id: tid, format: 'metadata', metadataHeaders: ['From', 'To'] })
+          .catch(() => null)
+      )
+    )
+
+    const repliedThreadIds = new Set<string>()
+    for (const res of threadDetails) {
+      if (!res?.data.messages || res.data.messages.length <= 1) continue
+      // Si au moins un message dans le thread n'est pas de nous → quelqu'un a répondu
+      const hasReply = res.data.messages.some(msg => {
+        const from = msg.payload?.headers?.find(h => h.name === 'From')?.value ?? ''
+        const { email: fromEmail } = parseEmailHeader(from)
+        return fromEmail && fromEmail !== myEmail
+      })
+      if (hasReply && res.data.id) repliedThreadIds.add(res.data.id)
+    }
+
+    // Marquer les contacts qui ont répondu
+    for (const contact of contactMap.values()) {
+      if (contact.threads.some(t => repliedThreadIds.has(t.threadId))) {
+        contact.hasReplied = true
+      }
     }
 
     // Filtrer les emails déjà dans la base
@@ -84,7 +114,11 @@ export async function GET(request: NextRequest) {
 
     const contacts = Array.from(contactMap.values())
       .filter(c => !existingEmails.has(c.email))
-      .sort((a, b) => new Date(b.lastSent).getTime() - new Date(a.lastSent).getTime())
+      .sort((a, b) => {
+        // Ceux qui ont répondu en premier
+        if (a.hasReplied !== b.hasReplied) return a.hasReplied ? -1 : 1
+        return new Date(b.lastSent).getTime() - new Date(a.lastSent).getTime()
+      })
 
     return NextResponse.json({ contacts })
   } catch (err) {

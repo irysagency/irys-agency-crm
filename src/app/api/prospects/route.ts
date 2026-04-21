@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import type { NicheType } from '@/types'
+import type { NicheType, SourceType } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
 interface CreateProspectBody {
   nom: string
   niche: NicheType
+  source?: SourceType
   email?: string
   instagram?: string
   youtube?: string
@@ -23,7 +24,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Corps invalide' }, { status: 400 })
   }
 
-  const { nom, niche, email, instagram, youtube, linkedin, whatsapp, notes } = body
+  const { nom, niche, source, email, instagram, youtube, linkedin, whatsapp, notes } = body
 
   if (!nom?.trim() || !niche) {
     return NextResponse.json({ error: 'Nom et niche sont obligatoires' }, { status: 400 })
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     .insert({
       nom: nom.trim(),
       niche,
+      source: source ?? 'email',
       email: email?.trim() || null,
       instagram: instagram?.trim() || null,
       youtube: youtube?.trim() || null,
