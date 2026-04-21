@@ -1,12 +1,15 @@
 'use client'
 
 import { Eye, Clock, RefreshCw } from 'lucide-react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { NicheBadge } from '@/components/ui/Badge'
 import type { Prospect } from '@/types'
 
 interface ProspectCardProps {
   prospect: Prospect
   onClick: () => void
+  isDragging?: boolean
 }
 
 function formatRelativeDate(dateStr: string | null): string {
@@ -28,13 +31,43 @@ function needsFollowUp(prospect: Prospect): boolean {
   return diffDays > delai
 }
 
-export function ProspectCard({ prospect, onClick }: ProspectCardProps) {
+export function ProspectCard({ prospect, onClick, isDragging = false }: ProspectCardProps) {
   const needsRelance = needsFollowUp(prospect)
+
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging: isSortableDragging,
+  } = useSortable({ id: prospect.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  }
+
+  if (isSortableDragging) {
+    return (
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="bg-bg-card border-2 border-dashed border-white/10 rounded-card p-4 opacity-40 h-[88px]"
+      />
+    )
+  }
 
   return (
     <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
       onClick={onClick}
-      className="bg-bg-card border border-border-color-subtle rounded-card p-4 cursor-pointer hover:border-white/10 transition-all duration-150 group"
+      className={`bg-bg-card border border-border-color-subtle rounded-card p-4 cursor-grab active:cursor-grabbing hover:border-white/10 transition-all duration-150 group select-none ${
+        isDragging ? 'shadow-2xl shadow-black/40 ring-2 ring-accent-violet/30' : 'hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5'
+      }`}
     >
       <div className="flex items-start justify-between mb-2">
         <h4 className="font-medium text-sm text-text-primary group-hover:text-accent-violet transition-colors">
