@@ -18,32 +18,35 @@ export function FunnelChart() {
 
   useEffect(() => {
     async function fetchData() {
-      const supabase = createClient()
-      const twoMonthsAgo = new Date()
-      twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
+      try {
+        const supabase = createClient()
+        const twoMonthsAgo = new Date()
+        twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2)
 
-      const { data: prospects } = await supabase
-        .from('prospects')
-        .select('statut, derniere_action')
-        .gte('derniere_action', twoMonthsAgo.toISOString())
+        const { data: prospects } = await supabase
+          .from('prospects')
+          .select('statut, derniere_action')
+          .gte('derniere_action', twoMonthsAgo.toISOString())
 
-      if (prospects) {
-        const weekMap = new Map<string, WeekFunnel>()
-        prospects.forEach(prospect => {
-          if (!prospect.derniere_action) return
-          const date = new Date(prospect.derniere_action)
-          const weekStart = new Date(date)
-          weekStart.setDate(date.getDate() - date.getDay())
-          const key = weekStart.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
-          const existing = weekMap.get(key) ?? { semaine: key, envoye: 0, repondu: 0, converti: 0 }
-          existing.envoye++
-          if ((['repondu', 'call_booke', 'signe'] as const).includes(prospect.statut as 'repondu' | 'call_booke' | 'signe')) existing.repondu++
-          if ((['call_booke', 'signe'] as const).includes(prospect.statut as 'call_booke' | 'signe')) existing.converti++
-          weekMap.set(key, existing)
-        })
-        setData(Array.from(weekMap.values()))
+        if (prospects) {
+          const weekMap = new Map<string, WeekFunnel>()
+          prospects.forEach(prospect => {
+            if (!prospect.derniere_action) return
+            const date = new Date(prospect.derniere_action)
+            const weekStart = new Date(date)
+            weekStart.setDate(date.getDate() - date.getDay())
+            const key = weekStart.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+            const existing = weekMap.get(key) ?? { semaine: key, envoye: 0, repondu: 0, converti: 0 }
+            existing.envoye++
+            if ((['repondu', 'call_booke', 'signe'] as const).includes(prospect.statut as 'repondu' | 'call_booke' | 'signe')) existing.repondu++
+            if ((['call_booke', 'signe'] as const).includes(prospect.statut as 'call_booke' | 'signe')) existing.converti++
+            weekMap.set(key, existing)
+          })
+          setData(Array.from(weekMap.values()))
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     fetchData()
   }, [])

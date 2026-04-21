@@ -4,7 +4,12 @@ import { RelancesList } from '@/components/relances/RelancesList'
 export const dynamic = 'force-dynamic'
 
 export default async function RelancesPage() {
-  const prospects = await getRelances()
+  let prospects: Awaited<ReturnType<typeof getRelances>> = []
+  try {
+    prospects = await getRelances()
+  } catch {
+    // Supabase indisponible — affiche liste vide
+  }
 
   return (
     <div>

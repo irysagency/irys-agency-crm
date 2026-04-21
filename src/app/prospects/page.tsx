@@ -4,6 +4,11 @@ import { KanbanBoard } from '@/components/prospects/KanbanBoard'
 export const dynamic = 'force-dynamic'
 
 export default async function ProspectsPage() {
-  const prospects = await getProspects()
+  let prospects: Awaited<ReturnType<typeof getProspects>> = []
+  try {
+    prospects = await getProspects()
+  } catch {
+    // Supabase indisponible — affiche un kanban vide
+  }
   return <KanbanBoard initialProspects={prospects} />
 }

@@ -5,16 +5,20 @@ import { TrackingStatus } from '@/components/settings/TrackingStatus'
 export const dynamic = 'force-dynamic'
 
 async function getSettings() {
-  const supabase = createServerClient()
-  const { data } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .in('key', ['gmail_access_token', 'relance_delai_jours'])
+  try {
+    const supabase = createServerClient()
+    const { data } = await supabase
+      .from('app_settings')
+      .select('key, value')
+      .in('key', ['gmail_access_token', 'relance_delai_jours'])
 
-  const map = Object.fromEntries((data ?? []).map(r => [r.key, r.value]))
-  return {
-    isGmailConnected: Boolean(map['gmail_access_token']),
-    delaiJours: parseInt(map['relance_delai_jours'] ?? '4', 10) || 4,
+    const map = Object.fromEntries((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+    return {
+      isGmailConnected: Boolean(map['gmail_access_token']),
+      delaiJours: parseInt(map['relance_delai_jours'] ?? '4', 10) || 4,
+    }
+  } catch {
+    return { isGmailConnected: false, delaiJours: 4 }
   }
 }
 

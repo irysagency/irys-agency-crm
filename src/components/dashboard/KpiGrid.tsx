@@ -60,15 +60,15 @@ export function KpiGrid() {
     )
   }
 
-  if (!stats) return null
+  const s = stats ?? { mailsEnvoyesSemaine: 0, tauxOuverture: 0, tauxReponse: 0, callsBookes: 0, clientsSignes: 0 }
 
   return (
     <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-      <KpiCard label="Mails envoyés" value={stats.mailsEnvoyesSemaine} icon={<Mail className="w-4 h-4 text-accent-violet" />} />
-      <KpiCard label="Taux d'ouverture" value={stats.tauxOuverture} unit="%" icon={<Eye className="w-4 h-4 text-accent-warning" />} />
-      <KpiCard label="Taux de réponse" value={stats.tauxReponse} unit="%" icon={<MessageSquare className="w-4 h-4 text-blue-400" />} />
-      <KpiCard label="Calls bookés" value={stats.callsBookes} icon={<Phone className="w-4 h-4 text-accent-success" />} />
-      <KpiCard label="Clients signés" value={stats.clientsSignes} icon={<CheckCircle className="w-4 h-4 text-accent-success" />} />
+      <KpiCard label="Mails envoyés" value={s.mailsEnvoyesSemaine} icon={<Mail className="w-4 h-4 text-accent-violet" />} />
+      <KpiCard label="Taux d'ouverture" value={s.tauxOuverture} unit="%" icon={<Eye className="w-4 h-4 text-accent-warning" />} />
+      <KpiCard label="Taux de réponse" value={s.tauxReponse} unit="%" icon={<MessageSquare className="w-4 h-4 text-blue-400" />} />
+      <KpiCard label="Calls bookés" value={s.callsBookes} icon={<Phone className="w-4 h-4 text-accent-success" />} />
+      <KpiCard label="Clients signés" value={s.clientsSignes} icon={<CheckCircle className="w-4 h-4 text-accent-success" />} />
     </div>
   )
 }

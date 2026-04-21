@@ -16,27 +16,30 @@ export function ActivityChart() {
 
   useEffect(() => {
     async function fetchData() {
-      const supabase = createClient()
-      const threeMonthsAgo = new Date()
-      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+      try {
+        const supabase = createClient()
+        const threeMonthsAgo = new Date()
+        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
 
-      const { data: emails } = await supabase
-        .from('emails')
-        .select('envoye_le')
-        .gte('envoye_le', threeMonthsAgo.toISOString())
+        const { data: emails } = await supabase
+          .from('emails')
+          .select('envoye_le')
+          .gte('envoye_le', threeMonthsAgo.toISOString())
 
-      if (emails) {
-        const weekMap = new Map<string, number>()
-        emails.forEach(email => {
-          const date = new Date(email.envoye_le)
-          const weekStart = new Date(date)
-          weekStart.setDate(date.getDate() - date.getDay())
-          const key = weekStart.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
-          weekMap.set(key, (weekMap.get(key) ?? 0) + 1)
-        })
-        setData(Array.from(weekMap.entries()).map(([semaine, mails]) => ({ semaine, mails })))
+        if (emails) {
+          const weekMap = new Map<string, number>()
+          emails.forEach(email => {
+            const date = new Date(email.envoye_le)
+            const weekStart = new Date(date)
+            weekStart.setDate(date.getDate() - date.getDay())
+            const key = weekStart.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })
+            weekMap.set(key, (weekMap.get(key) ?? 0) + 1)
+          })
+          setData(Array.from(weekMap.entries()).map(([semaine, mails]) => ({ semaine, mails })))
+        }
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     fetchData()
   }, [])
