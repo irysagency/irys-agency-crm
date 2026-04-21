@@ -9,52 +9,75 @@ function getOAuth2Client() {
   )
 }
 
-export function getAuthUrl(): string {
+export function getAuthUrl(label: string): string {
   const oauth2 = getOAuth2Client()
   return oauth2.generateAuthUrl({
     access_type: 'offline',
     prompt: 'consent',
-    scope: ['https://www.googleapis.com/auth/gmail.send'],
+    scope: ['https://www.googleapis.com/auth/gmail.send', 'https://www.googleapis.com/auth/userinfo.email'],
+    state: label,
   })
 }
 
-export async function handleOAuthCallback(code: string): Promise<void> {
+export async function handleOAuthCallback(code: string, label: string): Promise<void> {
   const oauth2 = getOAuth2Client()
   const { tokens } = await oauth2.getToken(code)
+
+  // Récupérer l'email du compte Google authentifié
+  oauth2.setCredentials(tokens)
+  const oauth2api = google.oauth2({ version: 'v2', auth: oauth2 })
+  const { data: userInfo } = await oauth2api.userinfo.get()
+
   const supabase = createServerClient()
-  await Promise.all([
-    supabase.from('app_settings').upsert({ key: 'gmail_access_token', value: tokens.access_token ?? '' }),
-    supabase.from('app_settings').upsert({ key: 'gmail_refresh_token', value: tokens.refresh_token ?? '' }),
-    supabase.from('app_settings').upsert({ key: 'gmail_token_expiry', value: String(tokens.expiry_date ?? '') }),
-  ])
+  await supabase.from('email_accounts').upsert(
+    {
+      label,
+      email: userInfo.email ?? null,
+      access_token: tokens.access_token ?? null,
+      refresh_token: tokens.refresh_token ?? null,
+      token_expiry: tokens.expiry_date ?? null,
+    },
+    { onConflict: 'label' },
+  )
 }
 
-export async function getAuthenticatedGmail() {
+export async function getAuthenticatedGmail(accountId: string) {
   const supabase = createServerClient()
-  const { data } = await supabase
-    .from('app_settings')
-    .select('key, value')
-    .in('key', ['gmail_access_token', 'gmail_refresh_token', 'gmail_token_expiry'])
+  const { data: account } = await supabase
+    .from('email_accounts')
+    .select('access_token, refresh_token, token_expiry, label')
+    .eq('id', accountId)
+    .single()
 
-  const settings = Object.fromEntries((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+  if (!account) throw new Error('Compte email introuvable')
+
   const oauth2 = getOAuth2Client()
   oauth2.setCredentials({
-    access_token: settings['gmail_access_token'],
-    refresh_token: settings['gmail_refresh_token'],
-    expiry_date: settings['gmail_token_expiry'] ? Number(settings['gmail_token_expiry']) : undefined,
+    access_token: account.access_token,
+    refresh_token: account.refresh_token,
+    expiry_date: account.token_expiry ? Number(account.token_expiry) : undefined,
   })
 
-  // Persist refreshed tokens automatically
+  // Persister les tokens rafraîchis
   oauth2.on('tokens', async (tokens) => {
-    if (tokens.access_token) {
-      await supabase.from('app_settings').upsert({ key: 'gmail_access_token', value: tokens.access_token })
-    }
-    if (tokens.expiry_date) {
-      await supabase.from('app_settings').upsert({ key: 'gmail_token_expiry', value: String(tokens.expiry_date) })
+    const updates: Record<string, string | number> = {}
+    if (tokens.access_token) updates['access_token'] = tokens.access_token
+    if (tokens.expiry_date) updates['token_expiry'] = tokens.expiry_date
+    if (Object.keys(updates).length > 0) {
+      await supabase.from('email_accounts').update(updates).eq('id', accountId)
     }
   })
 
   return google.gmail({ version: 'v1', auth: oauth2 })
+}
+
+export async function getEmailAccounts() {
+  const supabase = createServerClient()
+  const { data } = await supabase
+    .from('email_accounts')
+    .select('id, label, email')
+    .order('created_at', { ascending: true })
+  return data ?? []
 }
 
 export function buildRawMessage({

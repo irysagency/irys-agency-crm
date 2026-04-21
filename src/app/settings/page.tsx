@@ -7,23 +7,21 @@ export const dynamic = 'force-dynamic'
 async function getSettings() {
   try {
     const supabase = createServerClient()
-    const { data } = await supabase
-      .from('app_settings')
-      .select('key, value')
-      .in('key', ['gmail_access_token', 'relance_delai_jours'])
-
-    const map = Object.fromEntries((data ?? []).map((r: { key: string; value: string }) => [r.key, r.value]))
+    const [accountsRes, delayRes] = await Promise.all([
+      supabase.from('email_accounts').select('id, label, email').order('created_at', { ascending: true }),
+      supabase.from('app_settings').select('value').eq('key', 'relance_delai_jours').single(),
+    ])
     return {
-      isGmailConnected: Boolean(map['gmail_access_token']),
-      delaiJours: parseInt(map['relance_delai_jours'] ?? '4', 10) || 4,
+      accounts: accountsRes.data ?? [],
+      delaiJours: parseInt(delayRes.data?.value ?? '4', 10) || 4,
     }
   } catch {
-    return { isGmailConnected: false, delaiJours: 4 }
+    return { accounts: [], delaiJours: 4 }
   }
 }
 
 export default async function SettingsPage() {
-  const { isGmailConnected, delaiJours } = await getSettings()
+  const { accounts, delaiJours } = await getSettings()
 
   return (
     <div>
@@ -32,7 +30,7 @@ export default async function SettingsPage() {
         <p className="text-sm text-text-secondary mt-1">Configuration du CRM</p>
       </div>
       <div className="max-w-xl space-y-4">
-        <GmailConnect isConnected={isGmailConnected} />
+        <GmailConnect accounts={accounts} />
         <TrackingStatus delaiJours={delaiJours} />
       </div>
     </div>
