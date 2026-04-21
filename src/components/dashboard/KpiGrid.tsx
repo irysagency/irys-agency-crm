@@ -23,23 +23,20 @@ export function KpiGrid() {
       try {
         const supabase = createClient()
 
-        const [emailsRes, prospectsRes] = await Promise.all([
-          supabase.from('emails').select('ouvert'),
-          supabase.from('prospects').select('statut'),
-        ])
+        const { data: prospects } = await supabase.from('prospects').select('statut')
 
-        if (emailsRes.data && prospectsRes.data) {
-          const emails = emailsRes.data
-          const prospects = prospectsRes.data
-          // Tous les prospects qui ne sont pas "à contacter" = personnes contactées
+        if (prospects) {
           const contactees = prospects.filter(p => p.statut !== 'a_contacter')
+          const ayantOuvert = prospects.filter(p =>
+            ['ouvert', 'repondu', 'call_booke', 'signe', 'refuse'].includes(p.statut)
+          )
           const ayantRepondu = prospects.filter(p =>
             ['repondu', 'call_booke', 'signe', 'refuse'].includes(p.statut)
           )
           setStats({
             personnesContactees: contactees.length,
-            tauxOuverture: emails.length > 0
-              ? Math.round((emails.filter(e => e.ouvert).length / emails.length) * 100)
+            tauxOuverture: contactees.length > 0
+              ? Math.round((ayantOuvert.length / contactees.length) * 100)
               : 0,
             tauxReponse: contactees.length > 0
               ? Math.round((ayantRepondu.length / contactees.length) * 100)
