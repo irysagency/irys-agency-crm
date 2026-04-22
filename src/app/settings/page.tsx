@@ -1,28 +1,22 @@
-import { createServerClient } from '@/lib/supabase/server'
 import { GmailConnect } from '@/components/settings/GmailConnect'
 import { GmailImport } from '@/components/settings/GmailImport'
 import { TrackingStatus } from '@/components/settings/TrackingStatus'
+import { createServerClient } from '@/lib/supabase/server'
+import { getRelanceDelays } from '@/lib/supabase/queries'
 
 export const dynamic = 'force-dynamic'
 
-async function getSettings() {
-  try {
-    const supabase = createServerClient()
-    const [accountsRes, delayRes] = await Promise.all([
-      supabase.from('email_accounts').select('id, label, email').order('created_at', { ascending: true }),
-      supabase.from('app_settings').select('value').eq('key', 'relance_delai_jours').single(),
-    ])
-    return {
-      accounts: accountsRes.data ?? [],
-      delaiJours: parseInt(delayRes.data?.value ?? '4', 10) || 4,
-    }
-  } catch {
-    return { accounts: [], delaiJours: 4 }
-  }
-}
-
 export default async function SettingsPage() {
-  const { accounts, delaiJours } = await getSettings()
+  const supabase = createServerClient()
+  const [accountsRes, delays] = await Promise.all([
+    supabase
+      .from('email_accounts')
+      .select('id, label, email')
+      .order('created_at', { ascending: true }),
+    getRelanceDelays().catch(() => ({ delaiEnvoye: 7, delaiOuvert: 3 })),
+  ])
+
+  const accounts = accountsRes.data ?? []
 
   return (
     <div>
@@ -33,7 +27,7 @@ export default async function SettingsPage() {
       <div className="max-w-xl space-y-4">
         <GmailConnect accounts={accounts} />
         <GmailImport accounts={accounts} />
-        <TrackingStatus delaiJours={delaiJours} />
+        <TrackingStatus delaiEnvoye={delays.delaiEnvoye} delaiOuvert={delays.delaiOuvert} />
       </div>
     </div>
   )
