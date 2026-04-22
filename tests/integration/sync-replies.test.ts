@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const mockUpdateEmail = vi.fn().mockResolvedValue({ error: null })
 const mockUpdateProspect = vi.fn().mockResolvedValue({ error: null })
 
-function chain(data: unknown) {
+function chain(data: unknown): Record<string, unknown> {
   const fn = async () => ({ data, error: null })
   const obj: Record<string, unknown> = {
     select: () => obj,
@@ -12,9 +12,9 @@ function chain(data: unknown) {
     not: () => obj,
     maybeSingle: fn,
     single: fn,
+    then: (resolve?: ((v: unknown) => unknown) | null) =>
+      fn().then(v => resolve?.(v)),
   }
-  ;(obj as unknown as PromiseLike<unknown>).then = (resolve: (v: unknown) => void) =>
-    fn().then(resolve)
   return obj
 }
 
