@@ -1,5 +1,16 @@
 import { createServerClient } from './server'
-import type { Prospect, Email, StatutType } from '@/types'
+import { CRM_ERRORS } from '@/lib/errors'
+import {
+  computeDashboardStats,
+  computeFunnelData,
+  computeActivityData,
+  isProspectRelancable,
+  type RelanceDelays,
+} from '@/lib/kpis'
+import type {
+  Prospect, Email, StatutType,
+  DashboardStats, FunnelData, ActivityPoint,
+} from '@/types'
 
 export async function getProspects(): Promise<Prospect[]> {
   const supabase = createServerClient()
@@ -8,7 +19,7 @@ export async function getProspects(): Promise<Prospect[]> {
     .select('*')
     .order('created_at', { ascending: false })
   if (error) throw new Error(error.message)
-  return data
+  return data as Prospect[]
 }
 
 export async function getProspectById(id: string): Promise<Prospect | null> {
@@ -19,7 +30,7 @@ export async function getProspectById(id: string): Promise<Prospect | null> {
     .eq('id', id)
     .single()
   if (error) return null
-  return data
+  return data as Prospect
 }
 
 export async function updateProspectStatut(id: string, statut: StatutType): Promise<void> {
@@ -48,67 +59,79 @@ export async function getEmailsByProspect(prospectId: string): Promise<Email[]> 
     .eq('prospect_id', prospectId)
     .order('envoye_le', { ascending: true })
   if (error) throw new Error(error.message)
-  return data
+  return data as Email[]
 }
 
-export async function getDashboardStats() {
+export async function getRelanceDelays(): Promise<RelanceDelays> {
   const supabase = createServerClient()
-  const oneWeekAgo = new Date()
-  oneWeekAgo.setDate(oneWeekAgo.getDate() - 7)
+  const { data, error } = await supabase
+    .from('app_settings')
+    .select('key, value')
+    .in('key', ['relance_delai_jours', 'relance_delai_ouvert_jours'])
 
-  const [emailsResult, prospectsResult] = await Promise.all([
-    supabase
-      .from('emails')
-      .select('id, ouvert, nb_ouvertures, envoye_le')
-      .gte('envoye_le', oneWeekAgo.toISOString()),
-    supabase
-      .from('prospects')
-      .select('statut'),
-  ])
+  if (error) throw new Error(CRM_ERRORS.SUPABASE_ERROR)
 
-  if (emailsResult.error) throw new Error(emailsResult.error.message)
-  if (prospectsResult.error) throw new Error(prospectsResult.error.message)
+  const byKey = Object.fromEntries((data ?? []).map(r => [r.key, r.value]))
+  const delaiEnvoye = parseInt(byKey['relance_delai_jours'] ?? '', 10)
+  const delaiOuvert = parseInt(byKey['relance_delai_ouvert_jours'] ?? '', 10)
 
-  const emails = emailsResult.data
-  const prospects = prospectsResult.data
-
-  return {
-    mailsEnvoyesSemaine: emails.length,
-    tauxOuverture: emails.length > 0
-      ? Math.round((emails.filter(e => e.ouvert).length / emails.length) * 100)
-      : 0,
-    tauxReponse: prospects.length > 0
-      ? Math.round((prospects.filter(p => (['repondu', 'call_booke', 'signe'] as const).includes(p.statut as 'repondu' | 'call_booke' | 'signe')).length / prospects.length) * 100)
-      : 0,
-    callsBookes: prospects.filter(p => p.statut === 'call_booke').length,
-    clientsSignes: prospects.filter(p => p.statut === 'signe').length,
+  if (!Number.isFinite(delaiEnvoye) || !Number.isFinite(delaiOuvert)) {
+    throw new Error(CRM_ERRORS.MISSING_SETTING)
   }
+  return { delaiEnvoye, delaiOuvert }
+}
+
+export async function setRelanceDelay(
+  key: 'relance_delai_jours' | 'relance_delai_ouvert_jours',
+  value: number
+): Promise<void> {
+  const supabase = createServerClient()
+  const { error } = await supabase
+    .from('app_settings')
+    .upsert({ key, value: String(value) })
+  if (error) throw new Error(CRM_ERRORS.SUPABASE_ERROR)
+}
+
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const supabase = createServerClient()
+  const [prospectsRes, emailsRes] = await Promise.all([
+    supabase.from('prospects').select('statut, contacte_email, contacte_instagram'),
+    supabase.from('emails').select('ouvert, a_recu_reponse'),
+  ])
+  if (prospectsRes.error) throw new Error(prospectsRes.error.message)
+  if (emailsRes.error) throw new Error(emailsRes.error.message)
+  return computeDashboardStats(prospectsRes.data ?? [], emailsRes.data ?? [])
+}
+
+export async function getFunnelData(): Promise<FunnelData> {
+  const supabase = createServerClient()
+  const { data, error } = await supabase.from('prospects').select('statut')
+  if (error) throw new Error(error.message)
+  return computeFunnelData(data ?? [])
+}
+
+export async function getActivityData(lastNDays = 30): Promise<ActivityPoint[]> {
+  const supabase = createServerClient()
+  const since = new Date()
+  since.setUTCDate(since.getUTCDate() - (lastNDays - 1))
+  const { data, error } = await supabase
+    .from('emails')
+    .select('envoye_le, ouvert')
+    .gte('envoye_le', since.toISOString())
+  if (error) throw new Error(error.message)
+  return computeActivityData(data ?? [], lastNDays)
 }
 
 export async function getRelances(): Promise<Prospect[]> {
+  const delays = await getRelanceDelays()
   const supabase = createServerClient()
-
-  // Lire le délai configuré (défaut 4 jours)
-  const { data: setting } = await supabase
-    .from('app_settings')
-    .select('value')
-    .eq('key', 'relance_delai_jours')
-    .single()
-  const delaiJours = setting ? (parseInt(setting.value, 10) || 4) : 4
-
-  const now = new Date()
-  const delaiEnvoye = new Date(now.getTime() - delaiJours * 24 * 60 * 60 * 1000)
-  const delaiOuvert = new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000)
-
   const { data, error } = await supabase
     .from('prospects')
     .select('*')
-    .or(
-      `and(statut.eq.envoye,derniere_action.lt.${delaiEnvoye.toISOString()}),` +
-      `and(statut.eq.ouvert,derniere_action.lt.${delaiOuvert.toISOString()})`
-    )
-    .order('statut', { ascending: false })
-
+    .eq('contacte_email', true)
+    .in('statut', ['envoye', 'ouvert'])
+    .order('derniere_action', { ascending: true })
   if (error) throw new Error(error.message)
-  return data
+  const now = new Date()
+  return (data as Prospect[]).filter(p => isProspectRelancable(p, delays, now))
 }
