@@ -93,10 +93,12 @@ Dénominateur = tous les emails jamais envoyés (pas "cette semaine" — le user
 ### Taux de réponse
 
 ```
-count(emails with reply) / count(emails) * 100
+count(emails where a_recu_reponse = true) / count(emails) * 100
 ```
 
-Un email a une réponse si un email reçu existe dans le même thread avec `from != ma boîte`. Pour Phase 1 on approxime avec `emails.a_recu_reponse boolean` (nouvelle colonne mise à jour par le cron sync-replies). La table `gmail_messages` complète arrive en Phase 2.
+**Règle de flagging `a_recu_reponse`** : quand `sync-replies` détecte qu'un thread contient au moins un message `from != ma boîte`, on marque **uniquement le dernier email sortant du thread** (l'`emails` row avec `gmail_thread_id = X` + `envoye_le` max) comme `a_recu_reponse = true`. Raison : éviter la double-comptabilisation si plusieurs relances ont été envoyées sur le même thread — on veut "ce thread a abouti à une réponse", une fois.
+
+Pour Phase 1 on approxime avec `emails.a_recu_reponse boolean` (nouvelle colonne). La table `gmail_messages` complète (stockage des messages reçus) arrive en Phase 2.
 
 Ajout à la migration :
 
@@ -114,6 +116,52 @@ Un prospect est en relance si :
   - Pour `envoye` : `relance_delai_jours` (défaut 7)
   - Pour `ouvert` : `relance_delai_ouvert_jours` (défaut 3)
 
+La migration garantit que les deux settings existent — on **supprime le fallback `|| 4`** en bout de chaîne dans `getRelances()` au profit d'une erreur explicite si la ligne `app_settings` disparaissait (cas anormal qu'on veut voir).
+
+### Contrats de données
+
+**`getDashboardStats()` — nouveau type de retour** (remplace intégralement l'actuel) :
+
+```ts
+export interface DashboardStats {
+  personnesContactees: number   // prospects contacte_email=true OR contacte_instagram=true
+  mailsEnvoyes: number          // total emails (pas filtré par date)
+  tauxOuverture: number         // 0-100 entier, emails.ouvert=true / emails.*
+  tauxReponse: number           // 0-100 entier, emails.a_recu_reponse=true / emails.*
+  callsBookes: number           // prospects.statut='call_booke'
+  clientsSignes: number         // prospects.statut='signe'
+}
+```
+
+`FunnelChart` et `ActivityChart` recevront leurs propres datasets dédiés (pas le même objet — ils ont besoin de la ventilation par statut / par jour). À exposer :
+
+```ts
+export interface FunnelData { [K in StatutType]: number }
+export interface ActivityPoint { jour: string /* ISO date */; emailsEnvoyes: number; ouvertures: number }
+export async function getFunnelData(): Promise<FunnelData>
+export async function getActivityData(lastNDays?: number): Promise<ActivityPoint[]>
+```
+
+**`/api/settings/relance-delay` — nouveau contrat** :
+
+```ts
+// GET /api/settings/relance-delay
+// 200 OK
+{
+  delaiEnvoye: number   // jours, 1-30
+  delaiOuvert: number   // jours, 1-30
+}
+
+// POST /api/settings/relance-delay
+// Body (partiel accepté — on PATCH)
+{
+  delaiEnvoye?: number
+  delaiOuvert?: number
+}
+// 200 OK → même shape que GET
+// 400 si valeur hors [1, 30]
+```
+
 ### N8N webhook
 
 - **Validation runtime** : `niche` doit être dans la liste `NICHES` (erreur 400 sinon avec la liste attendue).
@@ -130,7 +178,7 @@ Un prospect est en relance si :
 | `src/components/dashboard/KpiGrid.tsx` | **Supprimer le fetch client** : transformer en Server Component qui reçoit les stats en props. Plus de recalcul local. |
 | `src/app/page.tsx` | Fetch `getDashboardStats()` côté serveur, passer en props à `KpiGrid`, `FunnelChart`, `ActivityChart` |
 | `src/components/dashboard/FunnelChart.tsx` + `ActivityChart.tsx` | Même transformation Server → props |
-| `src/app/api/gmail/sync-replies/route.ts` | Retirer le filtre `.in('statut', ['envoye', 'ouvert'])` ligne 41. Marquer `emails.a_recu_reponse = true` pour chaque thread ayant une réponse détectée. Ne mettre à jour `prospects.statut = 'repondu'` que si actuel est `envoye`/`ouvert` (garde l'effet actuel, mais le flag email est posé indépendamment). |
+| `src/app/api/gmail/sync-replies/route.ts` | Retirer le filtre `.in('statut', ['envoye', 'ouvert'])` ligne 41 — on itère tous les threads Gmail de tous les prospects contactés. Pour chaque thread ayant au moins un message `from != moi`, **flagger `emails.a_recu_reponse = true` sur le dernier email sortant du thread, toujours, indépendamment du statut prospect**. Ensuite, **seulement** si le statut actuel du prospect est `envoye` ou `ouvert`, passer à `repondu` (garde au-delà → le statut est figé, mais la réponse est comptée dans le KPI). |
 | `src/app/api/gmail/send/route.ts` | À chaque envoi, marquer `prospects.contacte_email = true` + `contacte_email_le = now()`. |
 | `src/app/api/webhooks/n8n/route.ts` | Validation runtime niche + dédup email/instagram + erreurs mappées |
 | `src/app/api/settings/relance-delay/route.ts` | Ajouter support du setting `relance_delai_ouvert_jours` (GET + POST). Renvoyer les 2 délais en GET. |
@@ -162,15 +210,18 @@ Priorité absolue sur les pures fonctions de calcul. Pas de framework de test in
 - POST avec nouveau prospect → 201 `{ success: true, prospect }`.
 
 **`sync-replies.test.ts`** (integration, mocké Gmail) :
-- Prospect `call_booke` reçoit une réponse Gmail → `emails.a_recu_reponse = true`, statut prospect inchangé.
-- Prospect `envoye` reçoit une réponse Gmail → `emails.a_recu_reponse = true`, statut passe à `repondu`.
+- Prospect `call_booke` reçoit une réponse Gmail → dernier email sortant du thread `a_recu_reponse = true`, statut prospect inchangé.
+- Prospect `signe` reçoit une réponse Gmail → dernier email sortant du thread `a_recu_reponse = true`, statut prospect inchangé (garde la finalité commerciale).
+- Prospect `envoye` reçoit une réponse Gmail → dernier email sortant du thread `a_recu_reponse = true`, statut passe à `repondu`.
+- Thread avec 3 emails sortants du même prospect + 1 réponse → **seul le 3e (le plus récent) email a `a_recu_reponse=true`** (pas les 2 premiers).
 
 ## Plan de déploiement
 
-1. Migration SQL appliquée sur Supabase prod (backfill inclus — à tester sur staging d'abord si dispo).
+1. Migration SQL appliquée sur Supabase prod (backfill inclus).
 2. Déploiement Vercel.
-3. Vérification manuelle : ouvrir `/`, vérifier que les KPIs ne sont plus à 0 %.
-4. Appeler manuellement `GET /api/gmail/sync-replies` pour backfill `a_recu_reponse` historique.
+3. **Attendu transitoire** : juste après déploiement, le **taux de réponse affichera 0 %** tant que le sync-replies n'a pas backfillé `a_recu_reponse` sur les threads historiques. Ne pas paniquer ni revert.
+4. Appeler manuellement `GET /api/gmail/sync-replies` (ou attendre le cron horaire `a038e2a`) pour poser `a_recu_reponse = true` sur les threads ayant déjà eu une réponse.
+5. Revérifier les KPIs après le sync → taux de réponse réaliste.
 
 ## Risques & mitigations
 
