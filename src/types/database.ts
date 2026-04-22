@@ -14,6 +14,10 @@ export interface Prospect {
   notes: string | null
   derniere_action: string | null
   nb_ouvertures: number
+  contacte_email: boolean
+  contacte_instagram: boolean
+  contacte_email_le: string | null
+  contacte_instagram_le: string | null
 }
 
 export interface Email {
@@ -27,6 +31,8 @@ export interface Email {
   nb_ouvertures: number
   premier_ouverture: string | null
   gmail_thread_id: string | null
+  from_account_id: string | null
+  a_recu_reponse: boolean
 }
 
 export interface TrackingPixel {
@@ -40,4 +46,21 @@ export interface AppSetting {
   key: string
   value: string
   updated_at: string
+}
+
+export interface DashboardStats {
+  personnesContactees: number
+  mailsEnvoyes: number
+  tauxOuverture: number
+  tauxReponse: number
+  callsBookes: number
+  clientsSignes: number
+}
+
+export type FunnelData = Record<StatutType, number>
+
+export interface ActivityPoint {
+  jour: string
+  emailsEnvoyes: number
+  ouvertures: number
 }
