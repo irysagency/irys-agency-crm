@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
-import type { NicheType } from '@/types'
+import { NICHES, type NicheType } from '@/types'
+import { CRM_ERRORS } from '@/lib/errors'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,11 +16,15 @@ interface N8NLeadPayload {
   notes?: string
 }
 
+function cleanStr(v: unknown): string | null {
+  if (typeof v !== 'string') return null
+  const t = v.trim()
+  return t.length > 0 ? t : null
+}
+
 export async function POST(request: NextRequest) {
-  // Vérification du token Bearer
   const authHeader = request.headers.get('Authorization')
   const expectedToken = process.env.N8N_WEBHOOK_SECRET
-
   if (!expectedToken) {
     return NextResponse.json({ error: 'Webhook non configuré' }, { status: 500 })
   }
@@ -34,31 +39,60 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Corps JSON invalide' }, { status: 400 })
   }
 
-  const { nom, niche, email, instagram, youtube, linkedin, whatsapp, notes } = body
-
-  if (!nom?.trim() || !niche) {
-    return NextResponse.json({ error: 'nom et niche sont requis' }, { status: 400 })
+  const nom = cleanStr(body.nom)
+  if (!nom) {
+    return NextResponse.json({ error: 'nom requis' }, { status: 400 })
+  }
+  if (!body.niche || !NICHES.includes(body.niche)) {
+    return NextResponse.json(
+      { error: `${CRM_ERRORS.INVALID_NICHE}. Accepté: ${NICHES.join(', ')}` },
+      { status: 400 }
+    )
   }
 
+  const email = cleanStr(body.email)
+  const instagram = cleanStr(body.instagram)
+  const youtube = cleanStr(body.youtube)
+  const linkedin = cleanStr(body.linkedin)
+  const whatsapp = cleanStr(body.whatsapp)
+  const notes = cleanStr(body.notes)
+
   const supabase = createServerClient()
+
+  if (email) {
+    const { data: dup } = await supabase
+      .from('prospects').select('id').eq('email', email).maybeSingle()
+    if (dup?.id) {
+      return NextResponse.json(
+        { deduplicated: true, prospect_id: dup.id, reason: 'email' },
+        { status: 200 }
+      )
+    }
+  }
+  if (instagram) {
+    const { data: dup } = await supabase
+      .from('prospects').select('id').eq('instagram', instagram).maybeSingle()
+    if (dup?.id) {
+      return NextResponse.json(
+        { deduplicated: true, prospect_id: dup.id, reason: 'instagram' },
+        { status: 200 }
+      )
+    }
+  }
+
   const { data, error } = await supabase
     .from('prospects')
     .insert({
-      nom: nom.trim(),
-      niche,
-      email:     email?.trim()     || null,
-      instagram: instagram?.trim() || null,
-      youtube:   youtube?.trim()   || null,
-      linkedin:  linkedin?.trim()  || null,
-      whatsapp:  whatsapp?.trim()  || null,
-      notes:     notes?.trim()     || null,
+      nom, niche: body.niche, email, instagram, youtube, linkedin, whatsapp, notes,
       statut: 'a_contacter',
       derniere_action: new Date().toISOString(),
     })
     .select('id, nom, statut')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    return NextResponse.json({ error: CRM_ERRORS.SUPABASE_ERROR }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true, prospect: data }, { status: 201 })
 }
