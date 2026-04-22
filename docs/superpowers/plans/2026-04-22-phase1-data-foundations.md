@@ -67,10 +67,10 @@
 - [ ] **Step 1 : Installer les dépendances**
 
 ```bash
-npm install --save-dev vitest @vitejs/plugin-react happy-dom @types/node
+npm install --save-dev vitest @vitejs/plugin-react happy-dom
 ```
 
-Expected : add 4 packages, no version conflicts.
+Expected : ajout de 3 packages, pas de conflit de version. (`@types/node` est déjà présent en `^20`.)
 
 - [ ] **Step 2 : Créer `vitest.config.ts`**
 
@@ -804,7 +804,7 @@ export function KpiGrid({ stats }: KpiGridProps) {
 - [ ] **Step 2 : Vérifier type-check**
 
 Run: `npm run type-check`
-Expected : `page.tsx` peut hurler parce qu'il n'envoie pas `stats` en prop — on corrige Task 9.
+Expected : `page.tsx` peut hurler parce qu'il n'envoie pas `stats` en prop — on corrige Task 8.
 
 - [ ] **Step 3 : Commit**
 
@@ -1491,7 +1491,8 @@ const supabaseMock = {
           { id: 'e1', prospect_id: 'p1', gmail_thread_id: 'T1', from_account_id: 'a1', envoye_le: '2026-04-20T00:00:00Z' },
           { id: 'e2', prospect_id: 'p1', gmail_thread_id: 'T1', from_account_id: 'a1', envoye_le: '2026-04-21T00:00:00Z' },
         ]),
-        update: vi.fn(() => ({ eq: vi.fn(() => mockUpdateEmail()) })),
+        // Route uses: update({...}).in('id', [...])  → expose .in (not .eq)
+        update: vi.fn(() => ({ in: vi.fn(() => mockUpdateEmail()) })),
       }
     }
     if (table === 'email_accounts') {
@@ -1540,9 +1541,10 @@ describe('POST /api/gmail/sync-replies', () => {
     const res = await POST()
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.updated).toBeGreaterThanOrEqual(0)
-    // Le dernier email sortant (e2, envoye_le le plus récent) doit être flaggé
-    // Note : la logique de filtrage par id le plus récent est testée indirectement via ce test
+    // Un thread avec réponse → 1 email flaggé (le dernier sortant), 1 prospect marqué répondu
+    expect(body.flagged_emails).toBe(1)
+    expect(body.updated_prospects).toBe(1)
+    expect(mockUpdateEmail).toHaveBeenCalledOnce()
   })
 })
 ```
