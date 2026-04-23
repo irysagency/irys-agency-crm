@@ -18,6 +18,8 @@ export interface Prospect {
   contacte_instagram: boolean
   contacte_email_le: string | null
   contacte_instagram_le: string | null
+  etapes: Array<{ statut: string; date: string }>
+  canal_contact: 'email' | 'instagram' | 'whatsapp' | 'autre' | null
 }
 
 export interface Email {
@@ -55,6 +57,12 @@ export interface DashboardStats {
   tauxReponse: number
   callsBookes: number
   clientsSignes: number
+  tauxConversionCall: number
+  tauxClosing: number
+  prospectsOuverts: number
+  prospectsRepondus: number
+  contactesEmail: number
+  contactesIG: number
 }
 
 export type FunnelData = Record<StatutType, number>

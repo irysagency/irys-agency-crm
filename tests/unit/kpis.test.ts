@@ -20,6 +20,8 @@ function p(overrides: Partial<Prospect> = {}): Prospect {
     contacte_instagram: false,
     contacte_email_le: null,
     contacte_instagram_le: null,
+    etapes: [],
+    canal_contact: null,
     ...overrides,
   }
 }

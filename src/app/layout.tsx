@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
 import { Sidebar } from '@/components/layout/Sidebar'
-import { Topbar } from '@/components/layout/Topbar'
 
 export const metadata: Metadata = {
   title: 'Irys CRM',
@@ -15,13 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body className="bg-bg-base text-text-primary min-h-screen flex">
+      <body className="bg-[#F4F5F7] text-[#111316] min-h-screen flex">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-h-screen ml-64">
-          <Topbar />
-          <main className="flex-1 p-6 overflow-auto">
-            {children}
-          </main>
+        <div className="flex-1 flex flex-col min-h-screen ml-16 overflow-auto">
+          {children}
         </div>
       </body>
     </html>

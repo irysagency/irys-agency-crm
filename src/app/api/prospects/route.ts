@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
+import { NICHES } from '@/types'
 import type { NicheType } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -25,8 +26,32 @@ export async function POST(request: NextRequest) {
 
   const { nom, niche, email, instagram, youtube, linkedin, whatsapp, notes } = body
 
-  if (!nom?.trim() || !niche) {
-    return NextResponse.json({ error: 'Nom et niche sont obligatoires' }, { status: 400 })
+  // Validation
+  if (!nom?.trim()) {
+    return NextResponse.json({ error: 'Le nom est obligatoire' }, { status: 400 })
+  }
+  if (nom.trim().length > 200) {
+    return NextResponse.json({ error: 'Le nom ne peut pas dépasser 200 caractères' }, { status: 400 })
+  }
+  if (!niche || !(NICHES as readonly string[]).includes(niche)) {
+    return NextResponse.json({ error: `La niche est invalide. Valeurs acceptées : ${NICHES.join(', ')}` }, { status: 400 })
+  }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (email?.trim() && !emailRegex.test(email.trim())) {
+    return NextResponse.json({ error: 'Adresse email invalide' }, { status: 400 })
+  }
+  if (instagram?.trim() && instagram.trim().length > 100) {
+    return NextResponse.json({ error: 'Instagram ne peut pas dépasser 100 caractères' }, { status: 400 })
+  }
+  const urlRegex = /^https?:\/\//
+  if (youtube?.trim() && !urlRegex.test(youtube.trim())) {
+    return NextResponse.json({ error: 'YouTube doit commencer par http:// ou https://' }, { status: 400 })
+  }
+  if (linkedin?.trim() && !urlRegex.test(linkedin.trim())) {
+    return NextResponse.json({ error: 'LinkedIn doit commencer par http:// ou https://' }, { status: 400 })
+  }
+  if (whatsapp?.trim() && whatsapp.trim().length > 30) {
+    return NextResponse.json({ error: 'WhatsApp ne peut pas dépasser 30 caractères' }, { status: 400 })
   }
 
   const supabase = createServerClient()

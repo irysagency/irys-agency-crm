@@ -12,13 +12,9 @@ interface DrawerProps {
   width?: string
 }
 
-export function Drawer({ open, onClose, title, children, width = 'w-[560px]' }: DrawerProps) {
+export function Drawer({ open, onClose, title, children, width = 'w-[520px]' }: DrawerProps) {
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow = open ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [open])
 
@@ -35,7 +31,7 @@ export function Drawer({ open, onClose, title, children, width = 'w-[560px]' }: 
       {/* Overlay */}
       <div
         className={clsx(
-          'fixed inset-0 bg-black/50 z-40 transition-opacity duration-200',
+          'fixed inset-0 bg-black/20 z-40 transition-opacity duration-200',
           open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         )}
         onClick={onClose}
@@ -44,20 +40,20 @@ export function Drawer({ open, onClose, title, children, width = 'w-[560px]' }: 
       {/* Drawer panel */}
       <div
         className={clsx(
-          'fixed right-0 top-0 h-screen bg-bg-sidebar border-l border-border-color-subtle z-50',
+          'fixed right-0 top-0 h-screen bg-white border-l border-[#E5E7EB] z-50',
           'flex flex-col transition-transform duration-200',
           width,
           open ? 'translate-x-0' : 'translate-x-full'
         )}
       >
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-border-color-subtle">
-            <h2 className="font-semibold text-text-primary">{title}</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#E5E7EB]">
+            <h2 className="font-semibold text-[#111316]">{title}</h2>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-lg hover:bg-white/5 flex items-center justify-center transition-colors"
+              className="w-8 h-8 rounded-[7px] hover:bg-[#F4F5F7] flex items-center justify-center transition-colors border border-[#E5E7EB]"
             >
-              <X className="w-4 h-4 text-text-secondary" />
+              <X className="w-4 h-4 text-[#474B52]" />
             </button>
           </div>
         )}

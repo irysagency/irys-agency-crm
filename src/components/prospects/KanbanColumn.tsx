@@ -5,14 +5,14 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { ProspectCard } from './ProspectCard'
 import type { Prospect, StatutType } from '@/types'
 
-const COLUMN_STYLES: Record<StatutType, { headerColor: string; dotColor: string; dropBg: string; dropBorder: string }> = {
-  a_contacter: { headerColor: 'text-text-secondary', dotColor: 'bg-text-secondary', dropBg: 'bg-white/3', dropBorder: 'border-white/20' },
-  envoye:      { headerColor: 'text-accent-violet',  dotColor: 'bg-accent-violet',  dropBg: 'bg-accent-violet/5', dropBorder: 'border-accent-violet/40' },
-  ouvert:      { headerColor: 'text-accent-warning', dotColor: 'bg-accent-warning', dropBg: 'bg-accent-warning/5', dropBorder: 'border-accent-warning/40' },
-  repondu:     { headerColor: 'text-blue-400',       dotColor: 'bg-blue-400',       dropBg: 'bg-blue-400/5', dropBorder: 'border-blue-400/40' },
-  call_booke:  { headerColor: 'text-accent-success', dotColor: 'bg-accent-success', dropBg: 'bg-accent-success/5', dropBorder: 'border-accent-success/40' },
-  signe:       { headerColor: 'text-accent-success', dotColor: 'bg-accent-success', dropBg: 'bg-accent-success/5', dropBorder: 'border-accent-success/40' },
-  refuse:      { headerColor: 'text-accent-danger',  dotColor: 'bg-accent-danger',  dropBg: 'bg-accent-danger/5', dropBorder: 'border-accent-danger/40' },
+const DOT_COLORS: Record<StatutType, string> = {
+  a_contacter: '#8A8F97',
+  envoye:      'oklch(0.58 0.14 245)',
+  ouvert:      'oklch(0.72 0.14 75)',
+  repondu:     'oklch(0.58 0.16 295)',
+  call_booke:  'oklch(0.64 0.18 340)',
+  signe:       'oklch(0.62 0.14 155)',
+  refuse:      'oklch(0.62 0.18 25)',
 }
 
 interface KanbanColumnProps {
@@ -22,30 +22,34 @@ interface KanbanColumnProps {
   onCardClick: (prospect: Prospect) => void
   isDragOver: boolean
   draggingId: string | null
+  selectedIds?: Set<string>
+  onSelect?: (id: string, selected: boolean) => void
 }
 
-export function KanbanColumn({ statut, label, prospects, onCardClick, isDragOver, draggingId }: KanbanColumnProps) {
-  const styles = COLUMN_STYLES[statut]
-
+export function KanbanColumn({ statut, label, prospects, onCardClick, isDragOver, draggingId, selectedIds, onSelect }: KanbanColumnProps) {
+  const dotColor = DOT_COLORS[statut]
   const { setNodeRef } = useDroppable({ id: statut })
 
   return (
-    <div className="flex-shrink-0 w-72">
-      <div className="flex items-center gap-2 mb-3 px-1">
-        <div className={`w-2 h-2 rounded-full ${styles.dotColor}`} />
-        <span className={`text-sm font-semibold ${styles.headerColor}`}>{label}</span>
-        <span className="ml-auto text-xs text-text-secondary bg-white/5 px-2 py-0.5 rounded-full">
+    <div className="w-[208px] flex-shrink-0 flex flex-col bg-[#FAFBFC] rounded-[12px] border border-[#E5E7EB] overflow-hidden">
+      {/* Column header */}
+      <div className="px-3 py-2.5 border-b border-[#E5E7EB] flex justify-between items-center">
+        <div className="flex items-center gap-[7px]">
+          <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: dotColor }} />
+          <span className="text-[12px] font-semibold text-[#111316]">{label}</span>
+        </div>
+        <span className="text-[11px] font-mono text-[#8A8F97] bg-[#F4F5F7] px-[6px] py-[1px] rounded-[4px]">
           {prospects.length}
         </span>
       </div>
 
+      {/* Drop zone */}
       <div
         ref={setNodeRef}
-        className={`min-h-[100px] rounded-xl border-2 border-dashed transition-all duration-200 p-2 space-y-2 ${
-          isDragOver
-            ? `${styles.dropBg} ${styles.dropBorder}`
-            : 'border-transparent'
-        }`}
+        className={[
+          'flex-1 overflow-auto p-2 flex flex-col gap-1.5 min-h-[80px] transition-colors duration-150',
+          isDragOver ? 'bg-[oklch(0.95_0.04_155)]/30' : '',
+        ].join(' ')}
       >
         <SortableContext items={prospects.map(p => p.id)} strategy={verticalListSortingStrategy}>
           {prospects.map(prospect => (
@@ -54,12 +58,14 @@ export function KanbanColumn({ statut, label, prospects, onCardClick, isDragOver
               prospect={prospect}
               onClick={() => onCardClick(prospect)}
               isDragging={draggingId === prospect.id}
+              isSelected={selectedIds?.has(prospect.id)}
+              onSelect={onSelect}
             />
           ))}
         </SortableContext>
 
         {isDragOver && prospects.length === 0 && (
-          <div className="flex items-center justify-center h-16 text-xs text-text-secondary">
+          <div className="flex items-center justify-center h-10 text-[11px] text-[#8A8F97] italic">
             Déposer ici
           </div>
         )}

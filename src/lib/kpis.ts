@@ -13,29 +13,52 @@ export interface RelanceDelays {
   delaiOuvert: number
 }
 
+const STATUTS_OUVERT: readonly StatutType[] = ['ouvert', 'repondu', 'call_booke', 'signe', 'refuse']
+const STATUTS_REPONDU: readonly StatutType[] = ['repondu', 'call_booke', 'signe', 'refuse']
+
 export function computeDashboardStats(
   prospects: Pick<Prospect, 'statut' | 'contacte_email' | 'contacte_instagram'>[],
   emails: Pick<Email, 'ouvert' | 'a_recu_reponse'>[]
 ): DashboardStats {
-  const personnesContactees = prospects.filter(
-    p => p.contacte_email || p.contacte_instagram
-  ).length
+  const contactes = prospects.filter(p => p.contacte_email || p.contacte_instagram)
+  const personnesContactees = contactes.length
 
-  const total = emails.length
-  const tauxOuverture = total === 0
-    ? 0
-    : Math.round((emails.filter(e => e.ouvert).length / total) * 100)
-  const tauxReponse = total === 0
-    ? 0
-    : Math.round((emails.filter(e => e.a_recu_reponse).length / total) * 100)
+  const emailContacts = prospects.filter(p => p.contacte_email)
+  const contactesEmail = emailContacts.length
+  const contactesIG = prospects.filter(p => p.contacte_instagram).length
+  const prospectsOuverts = emailContacts.filter(p => STATUTS_OUVERT.includes(p.statut)).length
+  const prospectsRepondus = contactes.filter(p => STATUTS_REPONDU.includes(p.statut)).length
+
+  const tauxOuverture = emailContacts.length > 0
+    ? Math.round((prospectsOuverts / emailContacts.length) * 100)
+    : 0
+  const tauxReponse = personnesContactees > 0
+    ? Math.round((prospectsRepondus / personnesContactees) * 100)
+    : 0
+
+  const callsBookes = prospects.filter(p => p.statut === 'call_booke').length
+  const clientsSignes = prospects.filter(p => p.statut === 'signe').length
+
+  const tauxConversionCall = personnesContactees > 0
+    ? Math.round(((callsBookes + clientsSignes) / personnesContactees) * 100)
+    : 0
+  const tauxClosing = callsBookes + clientsSignes > 0
+    ? Math.round((clientsSignes / (callsBookes + clientsSignes)) * 100)
+    : 0
 
   return {
     personnesContactees,
-    mailsEnvoyes: total,
+    mailsEnvoyes: emails.length,
     tauxOuverture,
     tauxReponse,
-    callsBookes: prospects.filter(p => p.statut === 'call_booke').length,
-    clientsSignes: prospects.filter(p => p.statut === 'signe').length,
+    callsBookes,
+    clientsSignes,
+    tauxConversionCall,
+    tauxClosing,
+    prospectsOuverts,
+    prospectsRepondus,
+    contactesEmail,
+    contactesIG,
   }
 }
 

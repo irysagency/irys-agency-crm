@@ -1,29 +1,46 @@
-'use client'
-
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import type { FunnelData } from '@/types'
 import { STATUTS } from '@/types'
 
-interface FunnelChartProps {
-  data: FunnelData
-}
+interface FunnelChartProps { data: FunnelData }
 
 export function FunnelChart({ data }: FunnelChartProps) {
-  const chartData = STATUTS.map(s => ({ statut: s.label, count: data[s.key] }))
+  const rows = STATUTS.map(s => ({ key: s.key, label: s.label, count: data[s.key] }))
+  const maxCount = Math.max(...rows.map(r => r.count), 1)
 
   return (
-    <div className="bg-bg-card border border-border-color-subtle rounded-card p-5">
-      <h3 className="font-semibold text-text-primary mb-4">Funnel prospects</h3>
-      <ResponsiveContainer width="100%" height={220}>
-        <BarChart data={chartData}>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" />
-          <XAxis dataKey="statut" tick={{ fill: '#888780', fontSize: 11 }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fill: '#888780', fontSize: 11 }} axisLine={false} tickLine={false} />
-          <Tooltip contentStyle={{ background: '#13131F', border: '1px solid rgba(255,255,255,0.06)', borderRadius: '8px', color: '#F1F1F1' }} />
-          <Legend wrapperStyle={{ color: '#888780', fontSize: '12px' }} />
-          <Bar dataKey="count" name="Prospects" fill="#7F77DD" radius={[4, 4, 0, 0]} />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="bg-white border border-[#E5E7EB] rounded-[12px] p-[16px_20px]">
+      <h3 className="text-[13px] font-semibold text-[#111316]">Entonnoir de conversion</h3>
+      <p className="text-[11px] text-[#8A8F97] mt-0.5 mb-[14px]">Distribution actuelle des prospects</p>
+      <div className="flex flex-col gap-2.5">
+        {rows.map((r, i) => {
+          const pct = rows[0].count > 0 && i > 0
+            ? Math.round((r.count / rows[0].count) * 100)
+            : 0
+          const isSigne = r.key === 'signe'
+          return (
+            <div key={r.key}>
+              <div className="flex justify-between text-[11px] mb-1">
+                <span className="text-[#474B52]">{r.label}</span>
+                <span className="font-mono text-[#111316]">
+                  {r.count}
+                  {i > 0 && r.count > 0 && (
+                    <span className="text-[#8A8F97] ml-1.5">· {pct}%</span>
+                  )}
+                </span>
+              </div>
+              <div className="h-2 bg-[#E5E7EB] rounded-[4px] overflow-hidden">
+                <div
+                  className="h-full rounded-[4px] transition-all duration-500"
+                  style={{
+                    width: `${maxCount > 0 ? Math.max((r.count / maxCount) * 100, r.count > 0 ? 2 : 0) : 0}%`,
+                    background: isSigne ? 'oklch(0.62 0.14 155)' : '#111316',
+                  }}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

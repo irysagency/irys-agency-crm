@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
       await supabase.from('emails').update({ gmail_thread_id: returnedThreadId }).eq('id', emailId)
     }
 
-    // Marque le prospect comme contacté par email (idempotent : premier envoi uniquement)
+    // Marque le prospect comme contacté par email + sauvegarde l'adresse si absente
     await supabase
       .from('prospects')
       .update({
@@ -86,6 +86,12 @@ export async function POST(request: NextRequest) {
       })
       .eq('id', prospectId)
       .eq('contacte_email', false)
+
+    await supabase
+      .from('prospects')
+      .update({ email: to })
+      .eq('id', prospectId)
+      .is('email', null)
 
     return NextResponse.json({ success: true, emailId })
   } catch (err) {
